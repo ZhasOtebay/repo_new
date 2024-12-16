@@ -1,0 +1,127 @@
+version: '3'
+services:
+  zookeeper:
+    image: zookeeper:3.8.0
+    ports:
+      - "2181:2181"
+
+  broker-1:
+    image: confluentinc/cp-kafka:7.2.1
+    ports:
+      - "29091:9091"
+      - "1099:1099"   # JMX Port
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://broker-1:9091,OUTSIDE://broker-1:29091
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9091,OUTSIDE://0.0.0.0:29091
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=broker-1 -Dcom.sun.management.jmxremote.rmi.port=1099"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+
+  broker-2:
+    image: confluentinc/cp-kafka:7.2.1
+    ports:
+      - "29092:9092"
+      - "1100:1100"   # JMX Port
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://broker-2:9092,OUTSIDE://broker-2:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:29092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=broker-2 -Dcom.sun.management.jmxremote.rmi.port=1100"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+
+  broker-3:
+    image: confluentinc/cp-kafka:7.2.1
+    ports:
+      - "29093:9093"
+      - "1101:1101"   # JMX Port
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://broker-3:9093,OUTSIDE://broker-3:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:29093
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=broker-3 -Dcom.sun.management.jmxremote.rmi.port=1101"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  telegram_bot:
+    build:
+      context: ./telegram-bot
+    restart: always
+    volumes:
+      - ./telegram-bot:/app
+    depends_on:
+      - mongodb
+      - broker-1
+      - broker-2
+      - broker-3
+
+  kafka-consumer:
+    build:
+      context: ./kafka-consumer
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+    environment:
+      - KAFKA_BROKER=broker-1:9091
+      - MONGO_URI=mongodb://mongodb:27017/telegram_bot
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    restart: always
+
+  jmxexporter1:
+    image: sscaling/jmx-prometheus-exporter
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./jmx_exporter/jmxexporter1.yml:/opt/jmx_exporter/config.yml
+
+  jmxexporter2:
+    image: sscaling/jmx-prometheus-exporter
+    ports:
+      - "5557:5556"
+    volumes:
+      - ./jmx_exporter/jmxexporter2.yml:/opt/jmx_exporter/config.yml
+
+  jmxexporter3:
+    image: sscaling/jmx-prometheus-exporter
+    ports:
+      - "5558:5556"
+    volumes:
+      - ./jmx_exporter/jmxexporter3.yml:/opt/jmx_exporter/config.yml
+
+volumes:
+  mongodb_data:
+    driver: local
+

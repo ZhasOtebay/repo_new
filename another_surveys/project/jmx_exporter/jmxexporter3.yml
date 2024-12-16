@@ -1,0 +1,9 @@
+startDelaySeconds: 3
+hostPort: broker-3:1101  # Change kafka1 to broker-1
+username:
+password:
+
+whitelistObjectNames: ["kafka.server:type=BrokerTopicMetrics,*"]
+rules:
+  - pattern: ".*"
+

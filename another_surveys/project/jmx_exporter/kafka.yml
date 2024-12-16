@@ -1,0 +1,5 @@
+rules:
+  - pattern: ".*"
+    name: "kafka"
+    help: "Kafka metrics"
+
